@@ -372,7 +372,7 @@
     // --- State ---
     const todayISO = new Date().toISOString().slice(0,10);
     let currentDate = localStorage.getItem('lastDate') || todayISO;
-    const defaultContent = ["# Food Library", "- (70, 6) Egg", "- (105, 1) Banana", "- (150, 20) Protein Shake", "- (200, 25) Chicken Breast", "", "# Daily Logs", `## ${todayISO} (${getDayName(todayISO)})`, ""];
+    const defaultContent = ["# Food Library", "- (70, 6) Egg", "- (105, 1) Banana", "- (150, 20) Protein Shake", "", "# Daily Logs", `## ${todayISO} (${getDayName(todayISO)})`, ""];
     
     let mdLines = JSON.parse(localStorage.getItem('mdLines')) || defaultContent;
     let targets = JSON.parse(localStorage.getItem('targets')) || { cal: 2000, pro: 150 };
