@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563EB">
+    <title>FoodLog v8.9</title>
+    <style>
+        :root { 
+            --bg: #F3F4F6; 
+            --surface: #FFFFFF; 
+            --primary: #2563EB; 
+            --primary-dark: #1E40AF;
+            --text: #1F2937; 
+            --text-light: #6B7280;
+            --border: #E5E7EB; 
+            --green: #10B981; 
+            --red: #EF4444;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html { height: 100%; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            /* Mobile-safe viewport sizing (Android address bar / bottom bar) */
+            height: calc(var(--vh, 1vh) * 100);
+            min-height: 100vh;
+            min-height: 100svh;
+            overflow: hidden; 
+        }
+        
+        /* HEADER */
+        header {
+            background: var(--surface);
+            padding: 15px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .stat-box { display: flex; flex-direction: column; }
+        .stat-label { font-size: 0.75rem; color: var(--text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-val { font-size: 1.5rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+        .stat-sub { font-size: 0.8rem; color: var(--text-light); font-weight: 500; }
+        
+        .progress-bar { height: 6px; background: #E5E7EB; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.3s ease; border-radius: 3px; }
+        
+        /* MAIN SCROLL AREA */
+        main { 
+            flex: 1; 
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch; 
+            padding: 20px; 
+            padding-bottom: calc(180px + env(safe-area-inset-bottom));
+            scroll-padding-bottom: calc(180px + env(safe-area-inset-bottom)); 
+        }
+
+        /* DATE PICKER */
+        .date-control {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface); padding: 5px;
+            border-radius: 12px; margin-bottom: 20px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-weight: 600;
+        }
+        .date-btn {
+            background: none; border: none; padding: 10px 15px;
+            font-size: 1.2rem; color: var(--primary); cursor: pointer;
+        }
+        .date-input-wrapper { display: flex; align-items: center; gap: 5px; }
+        .date-control input {
+            border: none; background: transparent; font-size: 1rem;
+            font-family: inherit; color: var(--text); font-weight: 700;
+            text-align: center;
+        }
+
+        /* GRID LAYOUT (CLEAN MINI CARDS) */
+        .grid-label { font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
+        
+        .food-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); 
+            gap: 10px; margin-bottom: 25px;
+        }
+        
+        .food-card {
+            background: var(--surface); padding: 12px 15px;
+            border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border); text-align: left;
+            transition: background 0.2s, transform 0.1s; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .food-card:active { transform: scale(0.98); background: #F9FAFB; }
+        
+        .food-name { font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 2px; }
+        .food-macro { font-size: 0.8rem; color: var(--text-light); font-family: -apple-system, monospace; }
+
+        /* LOG LIST */
+        .log-list { background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .log-item { 
+            padding: 12px 16px; border-bottom: 1px solid var(--border); 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .log-item:last-child { border-bottom: none; }
+        
+        .log-left { display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer; }
+        .log-left:active { opacity: 0.6; }
+        
+        .log-details { display: flex; flex-direction: column; }
+        .log-name { font-weight: 600; font-size: 0.95rem; }
+        .log-sub { font-size: 0.8rem; color: var(--text-light); font-family: monospace; }
+        .btn-del { background: #FEE2E2; color: #EF4444; border: none; padding: 6px 12px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-left: 10px; }
+
+        /* DAILY STATS CARD */
+        .daily-stats-card {
+            background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+            padding: 15px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between;
+            cursor: pointer;
+        }
+        .ds-item { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .ds-val { font-weight: 800; font-size: 1.1rem; color: #3730A3; }
+        .ds-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6366F1; margin-top: 2px; }
+
+        /* MODAL / BOTTOM SHEET */
+        .overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 200;
+            display: none; align-items: flex-end; 
+            backdrop-filter: blur(2px);
+        }
+        .overlay.active { display: flex; animation: fadeIn 0.2s; }
+        
+        .bottom-sheet {
+            background: var(--surface); width: 100%;
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            padding: 24px; padding-bottom: 40px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .bottom-sheet input { margin-bottom: 12px; }
+        .bottom-sheet .btn-block { margin-top: 15px; }
+
+        /* QTY CONTROLS */
+        .qty-control {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--bg); border-radius: 16px;
+            padding: 8px; margin: 20px 0;
+        }
+        .btn-qty {
+            width: 50px; height: 50px;
+            background: white; border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 12px; font-size: 1.5rem; font-weight: 600;
+            color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-qty:active { transform: scale(0.9); background: #F3F4F6; }
+        #qtyDisplay { font-size: 1.5rem; font-weight: 800; width: 60px; text-align: center; }
+
+        .btn-block { width: 100%; padding: 16px; border-radius: 16px; font-size: 1.1rem; font-weight: 700; border: none; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2); cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); box-shadow: none; margin-top: 10px; }
+        .btn-success { background: var(--green); color: white; border:none; }
+        .btn-icon { background: none; border:none; color: var(--primary); font-weight:600; font-size:0.9rem; cursor:pointer;}
+
+        /* CHECKBOX FOR RETRO UPDATE */
+        .retro-check { display:flex; align-items:center; gap:10px; margin-top:10px; padding:10px; background:#FEF2F2; border-radius:8px; border:1px solid #FECACA; color:#991B1B; font-size:0.9rem;}
+
+        /* SEARCH BAR */
+        .search-bar {
+            width: 100%; padding: 12px 16px; border: 1px solid var(--border);
+            border-radius: 12px; font-size: 1rem; background: var(--surface);
+            margin-bottom: 15px; outline: none;
+        }
+        .search-bar:focus { border-color: var(--primary); }
+
+        /* SETTINGS TAB */
+        textarea { width: 100%; border-radius: 12px; border: 1px solid var(--border); padding: 10px; font-family: monospace; font-size: 0.8rem; }
+        
+        /* NAV */
+        nav { position: fixed; bottom: 0; width: 100%; background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: 12px 0; z-index: 100; justify-content: space-around; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+        nav button { background: none; border: none; color: #9CA3AF; display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; gap: 4px; font-weight: 600; }
+        nav button svg { width: 24px; height: 24px; fill: currentColor; }
+        nav button.active { color: var(--primary); }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="stats-container">
+        <div class="stat-box">
+            <span class="stat-label">Calories</span>
+            <div><span class="stat-val" id="dispCal">0</span></div>
+            <span class="stat-sub" id="remCal">2000 left</span>
+            <div class="progress-bar"><div id="barCal" class="progress-fill" style="background: var(--primary); width: 0%;"></div></div>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">Protein</span>
+            <div><span class="stat-val" id="dispPro">0</span>g</div>
+            <span class="stat-sub" id="remPro">150g left</span>
+            <div class="progress-bar"><div id="barPro" class="progress-fill" style="background: var(--green); width: 0%;"></div></div>
+        </div>
+    </div>
+</header>
+
+<main id="mainView">
+    <div id="view-log" class="view">
+        <div class="date-control">
+            <button class="date-btn" onclick="adjDate(-1)">&#8249;</button>
+            <div class="date-input-wrapper">
+                <span style="font-size:0.8rem; color:var(--text-light)">LOG:</span>
+                <input type="date" id="dateInput">
+            </div>
+            <button class="date-btn" onclick="adjDate(1)">&#8250;</button>
+        </div>
+
+        <div class="grid-label">
+            <span>Quick Add</span>
+            <button class="btn-icon" onclick="openMetricsModal()">📊 Daily Stats</button>
+        </div>
+        
+        <input type="text" id="gridSearch" class="search-bar" placeholder="🔍 Filter food..." onkeyup="renderFoodGrid()">
+        <div id="foodGrid" class="food-grid">
+            </div>
+
+        <div class="grid-label">
+            <span>Today's Entries</span>
+            <span style="color:var(--primary); font-size:0.8rem;" onclick="switchView('lib')">Edit Library</span>
+        </div>
+        <div id="logList" class="log-list"></div>
+    </div>
+
+    <div id="view-lib" class="view hidden">
+        <h2 style="margin-top:0">Manage Library</h2>
+        <button class="btn-block btn-primary" onclick="openLibCreateModal()" style="margin-bottom:20px;">+ Create New Food</button>
+        <input id="libSearch" class="search-bar" placeholder="Search..." onkeyup="renderLibList()">
+        <div id="libListContainer" class="log-list"></div>
+    </div>
+
+    <div id="view-settings" class="view hidden">
+        <h2 style="margin-top:0">Data & Settings</h2>
+        
+        <div class="food-card" style="flex-direction:row; justify-content:space-between; margin-bottom:15px; text-align:left;">
+            <div>
+                <div class="food-name">File Name</div>
+                <div class="food-macro" id="fileNameDisp">food-log.md</div>
+            </div>
+            <div class="food-macro" id="backupTimer">Checking...</div>
+        </div>
+
+        <h3>🎯 Targets</h3>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <input type="number" id="setCal" class="search-bar" placeholder="Cal Target">
+            <input type="number" id="setPro" class="search-bar" placeholder="Pro Target">
+        </div>
+        <button class="btn-block btn-secondary" onclick="saveTargets()">Update Targets</button>
+
+        <h3>💾 Backup & Restore</h3>
+        <textarea id="rawEditor" style="height: 150px; margin-bottom:10px;" oninput="manualEdit()"></textarea>
+        
+        <button id="btnCopy" class="btn-block btn-secondary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+        
+        <button class="btn-block btn-primary" onclick="exportFile()" style="margin-top:10px;">Download .md File</button>
+        <button class="btn-block btn-secondary" onclick="$('fileInput').click()">Load Existing File</button>
+        <input type="file" id="fileInput" hidden accept=".md,.txt" onchange="importFile(this)">
+    </div>
+</main>
+
+<div id="qtyModal" class="overlay" onclick="if(event.target===this) closeQtyModal()">
+    <div class="bottom-sheet">
+        <h2 id="modalItemName" style="margin:0; font-size:1.5rem;">Food Name</h2>
+        <p id="modalItemMacros" style="color:var(--text-light); margin-top:5px;">100 cal / 20 pro</p>
+        
+        <div class="qty-control">
+            <button class="btn-qty" onclick="adjQty(-0.5)">−</button>
+            <span id="qtyDisplay">1</span>
+            <button class="btn-qty" onclick="adjQty(0.5)">+</button>
+        </div>
+        
+        <div style="text-align:center; margin-bottom:15px; font-weight:600; color:var(--primary);">
+            Total: <span id="modalTotal">100 cal / 20 pro</span>
+        </div>
+
+        <button id="modalActionBtn" class="btn-block btn-primary" onclick="confirmAdd()">Add to Log</button>
+    </div>
+</div>
+
+<div id="metricsModal" class="overlay" onclick="if(event.target===this) closeModal('metricsModal')">
+    <div class="bottom-sheet">
+        <h2 style="margin-top:0">Daily Statistics</h2>
+        
+        <div class="grid-label">😴 Sleep</div>
+        <div style="display:flex; gap:10px;">
+            <input id="metWake" type="time" class="search-bar" aria-label="Wake Time">
+            <input id="metSleep" type="number" step="0.5" class="search-bar" placeholder="Hours (e.g. 7.5)">
+        </div>
+
+        <div class="grid-label">👣 Activity</div>
+        <input id="metSteps" type="number" class="search-bar" placeholder="Steps (e.g. 8000)">
+
+        <div class="grid-label">⚖️ Body</div>
+        <input id="metWeight" type="number" step="0.1" class="search-bar" placeholder="Weight (e.g. 80.5)">
+
+        <button class="btn-block btn-primary" onclick="saveMetrics()">Save Stats</button>
+    </div>
+</div>
+
+<div id="createModal" class="overlay" onclick="if(event.target===this) closeModal('createModal')">
+    <div class="bottom-sheet">
+        <h3 id="libModalTitle">New Library Item</h3>
+        <input id="newLibName" class="search-bar" placeholder="Name (e.g. 🍎 Apple)">
+        <div style="display:flex; gap:10px;">
+            <input id="newLibCal" type="number" class="search-bar" placeholder="Calories">
+            <input id="newLibPro" type="number" class="search-bar" placeholder="Protein">
+        </div>
+        
+        <div id="retroContainer" class="retro-check hidden">
+            <input type="checkbox" id="retroUpdate">
+            <label for="retroUpdate">⚠️ Apply changes to <b>ALL</b> past logs?</label>
+        </div>
+
+        <button id="libSaveBtn" class="btn-block btn-primary" onclick="saveNewLibItem()">Save Item</button>
+    </div>
+</div>
+
+<nav>
+    <button onclick="switchView('log')" id="nav-log">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        Log
+    </button>
+    <button onclick="switchView('lib')" id="nav-lib">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM10 9h8v2h-8zm0 4h4v2h-4zm0-8h8v2h-8z"/></svg>
+        Library
+    </button>
+    <button onclick="switchView('settings')" id="nav-settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Settings
+    </button>
+</nav>
+
+<script>
+    // --- Mobile viewport height fix (Android dynamic browser UI) ---
+    (function() {
+        function setVh() {
+            document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+        }
+        setVh();
+        window.addEventListener('resize', setVh, { passive: true });
+        window.addEventListener('orientationchange', setVh, { passive: true });
+    })();
+
+
+    const $ = (id) => document.getElementById(id);
+    const getDayName = (d) => new Date(d.replace(/-/g, '\/')).toLocaleDateString('en-US', {weekday:'long'});
+
+    // --- State ---
+    const todayISO = new Date().toISOString().slice(0,10);
+    let currentDate = localStorage.getItem('lastDate') || todayISO;
+    const defaultContent = ["# Food Library", "- (70, 6) Egg", "- (105, 1) Banana", "- (150, 20) Protein Shake", "- (200, 25) Chicken Breast", "", "# Daily Logs", `## ${todayISO} (${getDayName(todayISO)})`, ""];
+    
+    let mdLines = JSON.parse(localStorage.getItem('mdLines')) || defaultContent;
+    let targets = JSON.parse(localStorage.getItem('targets')) || { cal: 2000, pro: 150 };
+    let currentFileName = localStorage.getItem('currentFileName') || "food-log.md";
+    let lastBackupTime = parseInt(localStorage.getItem('lastBackupTime')) || Date.now();
+    
+    let selectedFood = null; 
+    let selectedQty = 1;
+    let editIndex = -1; // For editing Log entries
+    let editLibLineIndex = -1; // For editing Library entries
+
+    // --- Init ---
+    $("dateInput").value = currentDate;
+    $("dateInput").addEventListener("change", (e) => {
+        currentDate = e.target.value;
+        localStorage.setItem('lastDate', currentDate);
+        render();
+    });
+    
+    $("setCal").value = targets.cal;
+    $("setPro").value = targets.pro;
+    
+    const lastView = localStorage.getItem('lastView') || 'log';
+    switchView(lastView);
+    render();
+
+    // --- LOGIC ---
+    function parseFile() {
+        const library = [];
+        let todayStats = { c: 0, p: 0 };
+        const todayStr = currentDate;
+        const todayHeaderPrefix = `## ${todayStr}`;
+        let section = 'none'; 
+        let inToday = false;
+
+        mdLines.forEach((line, idx) => {
+            const trim = line.trim();
+            if(trim === '# Food Library') { section = 'lib'; return; }
+            if(trim === '# Daily Logs') { section = 'logs'; return; }
+            if(trim.startsWith('## ')) {
+                if(section === 'logs') inToday = trim.startsWith(todayHeaderPrefix);
+                return;
+            }
+
+            const match = trim.match(/^-\s+\((\d+)(?:,\s*(\d+))?\)\s+(.+)$/);
+            if(match && !trim.match(/^-\s+\(\d{4}/)) {
+                const c = parseInt(match[1]);
+                const p = match[2] ? parseInt(match[2]) : 0;
+                const name = match[3].trim();
+                const item = { full: trim, c, p, name, lineIdx: idx }; 
+
+                if(section === 'lib') library.push(item);
+                else if(section === 'logs' && inToday) { todayStats.c += c; todayStats.p += p; }
+            }
+        });
+        return { library, todayStats };
+    }
+
+    
+    // --- Daily Summary (computed totals) ---
+    function updateDailySummary(dateStr) {
+        const headerPrefix = `## ${dateStr}`;
+        const headerIdx = mdLines.findIndex(l => l.trim().startsWith(headerPrefix));
+        if (headerIdx === -1) return;
+
+        // Find section end
+        let endIdx = mdLines.length;
+        for (let i = headerIdx + 1; i < mdLines.length; i++) {
+            const t = mdLines[i].trim();
+            if (t.startsWith("## ") || t === "# Food Library") { endIdx = i; break; }
+        }
+
+        // Identify metric lines at top of section (keep order)
+        const metricRe = /^-\s+\((\d{4}),\s*([\d\.]+)\)\((\d+)\)\(([\d\.]+)\)\s*$/;
+        const summaryRe = /^-\s+\((\d+),\s*(\d+)\)\s*$/;
+        const foodRe = /^-\s+\((\d+)(?:,\s*(\d+))?\)\s+(.+)\s*$/;
+
+        let metricEnd = headerIdx + 1;
+        while (metricEnd < endIdx && metricRe.test(mdLines[metricEnd].trim())) metricEnd++;
+
+        // Compute totals from food lines (exclude metrics and existing summary line)
+        let totC = 0, totP = 0;
+        for (let i = headerIdx + 1; i < endIdx; i++) {
+            const trim = mdLines[i].trim();
+            if (metricRe.test(trim)) continue;
+            if (summaryRe.test(trim)) continue; // don't count existing summary
+            const m = trim.match(foodRe);
+            if (m && !trim.match(/^-\s+\(\d{4}/)) { // exclude lines starting with (YYYY...) just in case
+                totC += parseInt(m[1], 10);
+                totP += m[2] ? parseInt(m[2], 10) : 0;
+            }
+        }
+
+        // Remove any existing summary lines in this section
+        for (let i = endIdx - 1; i >= headerIdx + 1; i--) {
+            if (summaryRe.test(mdLines[i].trim()) && !metricRe.test(mdLines[i].trim())) {
+                mdLines.splice(i, 1);
+                endIdx--;
+                if (i < metricEnd) metricEnd--;
+            }
+        }
+
+        // Only insert summary if there's something to summarize
+        if (totC === 0 && totP === 0) return;
+
+        const summaryLine = `- (${totC}, ${totP})`;
+        mdLines.splice(metricEnd, 0, summaryLine);
+    }
+
+
+    function render() {
+        updateDailySummary(currentDate);
+        const data = parseFile();
+        
+        // 1. Header Stats
+        const cLeft = targets.cal - data.todayStats.c;
+        const pLeft = targets.pro - data.todayStats.p;
+        
+        $("dispCal").innerText = data.todayStats.c;
+        $("remCal").innerText = cLeft >= 0 ? `${cLeft} left` : `${Math.abs(cLeft)} over`;
+        $("remCal").style.color = cLeft < 0 ? "var(--red)" : "var(--text-light)";
+        
+        $("dispPro").innerText = data.todayStats.p;
+        $("remPro").innerText = pLeft >= 0 ? `${pLeft}g left` : `${Math.abs(pLeft)}g over`;
+        
+        $("barCal").style.width = Math.min((data.todayStats.c / targets.cal)*100, 100) + "%";
+        $("barPro").style.width = Math.min((data.todayStats.p / targets.pro)*100, 100) + "%";
+        $("barCal").style.background = (data.todayStats.c > targets.cal) ? "var(--red)" : "var(--primary)";
+
+        // 2. Render Food Grid
+        renderFoodGrid(data.library);
+
+        // 3. Render Logs List
+        const list = $("logList");
+        list.innerHTML = "";
+        const todayStr = currentDate;
+        const todayHeaderPrefix = `## ${todayStr}`;
+        let inToday = false;
+        let hasLogs = false;
+        let dailyMetrics = null;
+        
+        mdLines.forEach((line, idx) => {
+            if(line.trim().startsWith(todayHeaderPrefix)) { inToday = true; return; }
+            if(line.startsWith("## ") || line.trim() === "# Food Library") inToday = false;
+            
+            if(inToday && line.trim().startsWith("-")) {
+                const trim = line.trim();
+                const metricMatch = trim.match(/^-\s+\((\d{4}),\s*([\d\.]+)\)\((\d+)\)\(([\d\.]+)\)$/);
+                if(metricMatch) {
+                    dailyMetrics = { wake: metricMatch[1], sleep: metricMatch[2], steps: metricMatch[3], weight: metricMatch[4] };
+                    return; 
+                }
+
+                const match = trim.match(/^-\s+\((\d+)(?:,\s*(\d+))?\)\s+(.+)$/);
+                if(match) {
+                    hasLogs = true;
+                    const c = match[1];
+                    const p = match[2] || 0;
+                    const rawName = match[3];
+
+                    const div = document.createElement("div");
+                    div.className = "log-item";
+
+                    const left = document.createElement("div");
+                    left.className = "log-left";
+                    left.addEventListener("click", () => editEntry(idx));
+
+                    const details = document.createElement("div");
+                    details.className = "log-details";
+
+                    const nameSpan = document.createElement("span");
+                    nameSpan.className = "log-name";
+                    nameSpan.textContent = rawName;
+
+                    const subSpan = document.createElement("span");
+                    subSpan.className = "log-sub";
+                    subSpan.textContent = `${c} Cal / ${p} Pro`;
+
+                    details.appendChild(nameSpan);
+                    details.appendChild(subSpan);
+                    left.appendChild(details);
+
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "btn-del";
+                    delBtn.type = "button";
+                    delBtn.textContent = "×";
+                    delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteLine(idx); });
+
+                    div.appendChild(left);
+                    div.appendChild(delBtn);
+
+                    list.appendChild(div);
+                }
+            }
+        });
+
+        if(dailyMetrics) {
+            const card = document.createElement("div");
+            card.className = "daily-stats-card";
+            card.onclick = openMetricsModal;
+            const wakeFmt = dailyMetrics.wake.slice(0,2) + ":" + dailyMetrics.wake.slice(2);
+            card.innerHTML = `
+                <div class="ds-item"><div class="ds-val">${wakeFmt}</div><div class="ds-lbl">Wake</div></div>
+                <div class="ds-item"><div class="ds-val">${dailyMetrics.sleep}h</div><div class="ds-lbl">Sleep</div></div>
+                <div class="ds-item"><div class="ds-val">${parseInt(dailyMetrics.steps).toLocaleString()}</div><div class="ds-lbl">Steps</div></div>
+                <div class="ds-item"><div class="ds-val">${dailyMetrics.weight}</div><div class="ds-lbl">Kg</div></div>
+            `;
+            list.prepend(card);
+            hasLogs = true;
+        }
+
+        if(!hasLogs) list.innerHTML = `<div style="padding:20px; text-align:center; color:#9CA3AF;">Tap an item above to log it</div>`;
+
+        // 4. Settings Info
+        $("fileNameDisp").innerText = currentFileName;
+        $("rawEditor").value = mdLines.join("\n");
+        const diff = Math.floor((Date.now() - lastBackupTime) / (1000*60*60*24));
+        $("backupTimer").innerText = diff > 2 ? "⚠️ Backup Needed" : `Backup: ${diff} days ago`;
+        $("backupTimer").style.color = diff > 2 ? "var(--red)" : "var(--green)";
+        
+        localStorage.setItem('mdLines', JSON.stringify(mdLines));
+    }
+
+    // --- Library Management ---
+    function renderLibList() {
+        const libData = parseFile().library;
+        const q = $("libSearch").value.toLowerCase();
+        const container = $("libListContainer");
+        container.innerHTML = "";
+        libData.filter(i => i.name.toLowerCase().includes(q))
+               .sort((a,b)=>a.name.localeCompare(b.name))
+               .forEach(item => {
+                   const div = document.createElement("div");
+                   div.className = "log-item";
+
+                   const left = document.createElement("div");
+                   left.className = "log-left";
+                   div.addEventListener("click", () => openLibEditModal(item.lineIdx, item.name, item.c, item.p));
+
+                   const details = document.createElement("div");
+                   details.className = "log-details";
+
+                   const nameSpan = document.createElement("span");
+                   nameSpan.className = "log-name";
+                   nameSpan.textContent = item.name;
+
+                   const subSpan = document.createElement("span");
+                   subSpan.className = "log-sub";
+                   subSpan.textContent = `(${item.c}, ${item.p})`;
+
+                   details.appendChild(nameSpan);
+                   details.appendChild(subSpan);
+                   left.appendChild(details);
+
+                   const delBtn = document.createElement("button");
+                   delBtn.className = "btn-del";
+                   delBtn.type = "button";
+                   delBtn.textContent = "×";
+                   delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteLine(item.lineIdx); });
+
+                   div.appendChild(left);
+                   div.appendChild(delBtn);
+                   container.appendChild(div);
+               });
+    }
+
+    function openLibCreateModal() { 
+        editLibLineIndex = -1; // Create Mode
+        $("libModalTitle").innerText = "New Library Item";
+        $("newLibName").value = ""; $("newLibCal").value = ""; $("newLibPro").value = "";
+        $("retroContainer").classList.add("hidden");
+        $("libSaveBtn").innerText = "Save Item";
+        $("createModal").classList.add("active"); 
+    }
+
+    function openLibEditModal(idx, name, c, p) {
+        editLibLineIndex = idx; // Edit Mode
+        $("libModalTitle").innerText = "Edit Library Item";
+        $("newLibName").value = name;
+        $("newLibCal").value = c;
+        $("newLibPro").value = p;
+        $("retroContainer").classList.remove("hidden");
+        $("retroUpdate").checked = false; // Default off
+        $("libSaveBtn").innerText = "Update Item";
+        $("createModal").classList.add("active");
+    }
+
+    function saveNewLibItem() {
+        const name = $("newLibName").value.trim();
+        const c = $("newLibCal").value || 0;
+        const p = $("newLibPro").value || 0;
+        if(!name) return;
+        
+        const line = `- (${c}, ${p}) ${name}`;
+        
+        if(editLibLineIndex > -1) {
+            // EDITING EXISTING ITEM
+            const oldLine = mdLines[editLibLineIndex];
+            const match = oldLine.match(/^-\s+\(\d+(?:,\s*\d+)?\)\s+(.+)$/);
+            const oldName = match ? match[1].trim() : name;
+
+            // Update the Library Line
+            mdLines[editLibLineIndex] = line;
+
+            // Check for Retroactive Update
+            if($("retroUpdate").checked) {
+                // Scan ALL lines for the old name in logs
+                for(let i=0; i<mdLines.length; i++) {
+                    const l = mdLines[i].trim();
+                    if(l.startsWith("-") && l.includes(oldName)) {
+                         const entryMatch = l.match(/^-\s+\((\d+)(?:,\s*(\d+))?\)\s+(?:([\d\.]+)\s+)?(.+)$/);
+                         if(entryMatch) {
+                             const logName = entryMatch[4].trim();
+                             if(logName === oldName) {
+                                 const qty = entryMatch[3] ? parseFloat(entryMatch[3]) : 1;
+                                 const newTotC = Math.round(c * qty);
+                                 const newTotP = Math.round(p * qty);
+                                 const displayStr = qty !== 1 ? `${qty} ${name}` : name;
+                                 mdLines[i] = `- (${newTotC}, ${newTotP}) ${displayStr}`;
+                             }
+                         }
+                    }
+                }
+                alert("Library and past history updated.");
+            }
+        } else {
+            // CREATING NEW ITEM
+            const libHeaderIdx = mdLines.findIndex(l => l.trim() === "# Food Library");
+            if(libHeaderIdx === -1) { mdLines.unshift(line); mdLines.unshift("# Food Library"); }
+            else { mdLines.splice(libHeaderIdx + 1, 0, line); }
+        }
+        
+        $("newLibName").value=""; $("newLibCal").value=""; $("newLibPro").value="";
+        closeModal('createModal');
+        render(); renderLibList();
+    }
+
+    function closeModal(id) { $(id).classList.remove("active"); }
+    function deleteLine(idx) { mdLines.splice(idx, 1); render(); renderLibList(); }
+    
+    // --- Standard Grid & Log Logic ---
+    function renderFoodGrid(libData) {
+        if(!libData) libData = parseFile().library;
+        const q = $("gridSearch").value.toLowerCase();
+        const grid = $("foodGrid");
+        grid.innerHTML = "";
+
+        libData.filter(i => i.name.toLowerCase().includes(q))
+               .sort((a,b) => a.name.localeCompare(b.name))
+               .forEach(item => {
+                   const el = document.createElement("div");
+                   el.className = "food-card";
+                   const nm = document.createElement("div");
+                   nm.className = "food-name";
+                   nm.textContent = item.name;
+
+                   const macro = document.createElement("div");
+                   macro.className = "food-macro";
+                   macro.textContent = `(${item.c}, ${item.p})`;
+
+                   el.appendChild(nm);
+                   el.appendChild(macro);
+                   el.onclick = () => openQtyModal(item, item.name);
+                   grid.appendChild(el);
+               });
+    }
+
+    function editEntry(idx) {
+        const line = mdLines[idx].trim();
+        const match = line.match(/^-\s+\((\d+)(?:,\s*(\d+))?\)\s+(?:([\d\.]+)\s+)?(.+)$/);
+        
+        if(match) {
+            const totalC = parseInt(match[1]);
+            const totalP = match[2] ? parseInt(match[2]) : 0;
+            const currentQty = match[3] ? parseFloat(match[3]) : 1;
+            const rawName = match[4].trim();
+            const unitC = totalC / currentQty;
+            const unitP = totalP / currentQty;
+
+            selectedFood = { c: unitC, p: unitP, name: rawName };
+            selectedQty = currentQty;
+            editIndex = idx; 
+            
+            $("modalItemName").innerText = rawName;
+            $("modalItemMacros").innerText = `${Math.round(unitC)} cal / ${Math.round(unitP)} pro per unit`;
+            $("modalActionBtn").innerText = "Update Entry";
+            $("modalActionBtn").classList.remove("btn-primary");
+            $("modalActionBtn").classList.add("btn-success");
+            
+            updateModalCalc();
+            $("qtyModal").classList.add("active");
+        }
+    }
+
+    function openQtyModal(item, cleanName) {
+        selectedFood = item;
+        selectedQty = 1;
+        editIndex = -1; 
+        
+        $("modalItemName").innerText = cleanName || item.name;
+        $("modalItemMacros").innerText = `${item.c} cal / ${item.p} pro per serving`;
+        $("modalActionBtn").innerText = "Add to Log";
+        $("modalActionBtn").classList.remove("btn-success");
+        $("modalActionBtn").classList.add("btn-primary");
+        
+        updateModalCalc();
+        $("qtyModal").classList.add("active");
+    }
+    
+    function closeQtyModal() { $("qtyModal").classList.remove("active"); }
+
+    function adjQty(delta) {
+        selectedQty += delta;
+        if(selectedQty < 0.5) selectedQty = 0.5;
+        selectedQty = Math.round(selectedQty * 10) / 10;
+        updateModalCalc();
+    }
+
+    function updateModalCalc() {
+        $("qtyDisplay").innerText = selectedQty;
+        const totC = Math.round(selectedFood.c * selectedQty);
+        const totP = Math.round(selectedFood.p * selectedQty);
+        $("modalTotal").innerText = `${totC} Cal / ${totP} Pro`;
+    }
+
+    function confirmAdd() {
+        const totC = Math.round(selectedFood.c * selectedQty);
+        const totP = Math.round(selectedFood.p * selectedQty);
+        const displayStr = selectedQty !== 1 ? `${selectedQty} ${selectedFood.name}` : selectedFood.name;
+        const line = `- (${totC}, ${totP}) ${displayStr}`;
+
+        if (editIndex > -1) {
+            mdLines[editIndex] = line;
+            editIndex = -1;
+        } else {
+            ensureSection(currentDate);
+            const headerPrefix = `## ${currentDate}`;
+            const headerIdx = mdLines.findIndex(l => l.trim().startsWith(headerPrefix));
+            let insertIdx = mdLines.length;
+            for(let i = headerIdx + 1; i < mdLines.length; i++) {
+                if(mdLines[i].startsWith("## ") || mdLines[i].trim() === "# Food Library") {
+                    insertIdx = i;
+                    while(insertIdx > headerIdx+1 && mdLines[insertIdx-1].trim()==="") insertIdx--;
+                    break;
+                }
+            }
+            mdLines.splice(insertIdx, 0, line);
+        }
+        closeQtyModal();
+        render();
+        if(window.navigator && window.navigator.vibrate) window.navigator.vibrate(50);
+    }
+
+    // --- Daily Metrics Logic ---
+    function openMetricsModal() {
+        const todayHeaderPrefix = `## ${currentDate}`;
+        let inToday = false;
+        $("metWake").value = "07:00"; $("metSleep").value = ""; $("metSteps").value = ""; $("metWeight").value = "";
+        for(let line of mdLines) {
+            if(line.trim().startsWith(todayHeaderPrefix)) { inToday = true; continue; }
+            if(line.startsWith("## ")) inToday = false;
+            if(inToday) {
+                 const metricMatch = line.trim().match(/^-\s+\((\d{4}),\s*([\d\.]+)\)\((\d+)\)\(([\d\.]+)\)$/);
+                 if(metricMatch) {
+                     const w = metricMatch[1];
+                     $("metWake").value = `${w.slice(0,2)}:${w.slice(2)}`;
+                     $("metSleep").value = metricMatch[2];
+                     $("metSteps").value = metricMatch[3];
+                     $("metWeight").value = metricMatch[4];
+                     break;
+                 }
+            }
+        }
+        $("metricsModal").classList.add("active");
+    }
+
+    function saveMetrics() {
+        let wake = $("metWake").value.replace(":",""); if(!wake) wake = "0000";
+        const sleep = $("metSleep").value || "0";
+        const steps = $("metSteps").value || "0";
+        const weight = $("metWeight").value || "0";
+        const lineStr = `- (${wake},${sleep})(${steps})(${weight})`;
+        
+        ensureSection(currentDate);
+        const todayHeaderPrefix = `## ${currentDate}`;
+        const headerIdx = mdLines.findIndex(l => l.trim().startsWith(todayHeaderPrefix));
+        const nextLineIdx = headerIdx + 1;
+        let checkIdx = nextLineIdx;
+        if(mdLines[checkIdx].trim() === "") checkIdx++;
+        const currentLine = mdLines[checkIdx];
+        if(currentLine && currentLine.match(/^-\s+\(\d{4},/)) { mdLines[checkIdx] = lineStr; } 
+        else { mdLines.splice(checkIdx, 0, lineStr); }
+        closeModal("metricsModal");
+        render();
+    }
+
+    function adjDate(days) {
+        const d = new Date(currentDate);
+        d.setDate(d.getDate() + days);
+        currentDate = d.toISOString().slice(0,10);
+        $("dateInput").value = currentDate;
+        localStorage.setItem('lastDate', currentDate);
+        render();
+    }
+
+    function ensureSection(date) {
+        let logsIdx = mdLines.findIndex(l => l.trim() === "# Daily Logs");
+        if(logsIdx === -1) { mdLines.push("", "# Daily Logs"); logsIdx = mdLines.length - 1; }
+        const headerPrefix = `## ${date}`;
+        if(!mdLines.some(l => l.trim().startsWith(headerPrefix))) {
+            const fullHeader = `## ${date} (${getDayName(date)})`;
+            let insertAt = -1;
+            for(let i = logsIdx + 1; i < mdLines.length; i++) {
+                const match = mdLines[i].trim().match(/^##\s+(\d{4}-\d{2}-\d{2})/);
+                if(match && date > match[1]) { insertAt = i; break; }
+            }
+            if(insertAt !== -1) mdLines.splice(insertAt, 0, "", fullHeader);
+            else mdLines.push("", fullHeader);
+        }
+    }
+
+    function switchView(v) {
+        document.querySelectorAll('.view').forEach(e => e.classList.add('hidden'));
+        $(`view-${v}`).classList.remove('hidden');
+        document.querySelectorAll('nav button').forEach(e => e.classList.remove('active'));
+        $(`nav-${v}`).classList.add('active');
+        if(v==='lib') renderLibList();
+        localStorage.setItem('lastView', v);
+    }
+
+    function saveTargets() {
+        targets.cal = parseInt($("setCal").value);
+        targets.pro = parseInt($("setPro").value);
+        localStorage.setItem('targets', JSON.stringify(targets));
+        render(); alert("Saved");
+    }
+    
+    function manualEdit() { mdLines = $("rawEditor").value.split("\n"); localStorage.setItem('mdLines', JSON.stringify(mdLines)); }
+    
+    function copyToClipboard() {
+        const text = mdLines.join("\n");
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = $("btnCopy");
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = "✅ Copied!";
+            btn.classList.remove("btn-secondary");
+            btn.classList.add("btn-success");
+            setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.add("btn-secondary"); btn.classList.remove("btn-success"); }, 2000);
+        }).catch(err => { alert("Copy failed (browser restriction). Use Download button."); });
+    }
+
+    function exportFile() {
+        const blob = new Blob([mdLines.join("\n")], { type: "text/markdown" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = currentFileName;
+        a.click();
+        lastBackupTime = Date.now();
+        localStorage.setItem('lastBackupTime', lastBackupTime);
+        render();
+    }
+
+    async function importFile(input) {
+        const file = input.files[0];
+        if(!file) return;
+        currentFileName = file.name;
+        localStorage.setItem('currentFileName', currentFileName);
+        const text = await file.text();
+        mdLines = text.replace(/\r\n/g, "\n").split("\n");
+        render();
+        alert("File Loaded!");
+    }
+</script>
+</body>
+</html>
